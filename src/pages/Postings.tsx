@@ -100,6 +100,10 @@ export default function Postings() {
           .split(",")
           .map((s) => s.trim())
           .filter(Boolean),
+        tags: ((form.get("tags") as string) || "")
+          .split(",")
+          .map((s) => s.trim().toLowerCase())
+          .filter(Boolean),
         eligibility: form.get("eligibility") as string,
         mode: form.get("mode") as never,
         location: ((form.get("location") as string) || undefined) ?? undefined,
@@ -145,14 +149,14 @@ export default function Postings() {
   return (
     <AppShell>
       <div className="flex flex-col gap-1">
-        <p className="text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
+        <p className="text-[11px] tracking-[0.22em] text-accent uppercase">
           Recruiter workspace
         </p>
         <div className="flex flex-wrap items-baseline justify-between gap-4">
-          <h1 className="text-2xl font-medium tracking-tight sm:text-3xl">
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
             Your postings
           </h1>
-          <Button className="rounded-none" onClick={openForm}>
+          <Button onClick={openForm}>
             <Plus className="size-4" />
             New opportunity
           </Button>
@@ -160,7 +164,7 @@ export default function Postings() {
       </div>
 
       {/* Stats */}
-      <div className="mt-8 grid grid-cols-2 border border-border sm:grid-cols-4">
+      <div className="mt-8 grid grid-cols-2 overflow-hidden rounded-2xl border border-border bg-card sm:grid-cols-4">
         {[
           { label: "Postings", value: stats.total },
           { label: "Open", value: stats.open },
@@ -195,19 +199,19 @@ export default function Postings() {
             Publish an internship, hackathon, placement drive or workshop and it
             appears in every student&apos;s feed instantly.
           </p>
-          <Button className="mt-6 rounded-none" onClick={openForm}>
+          <Button variant="outline" onClick={openForm}>
             <Plus className="size-4" />
             Create your first opportunity
           </Button>
         </div>
       ) : (
-        <div className="mt-10 border-t border-border">
+        <div className="mt-10 flex flex-col gap-3">
           {postings.map((posting) => {
             const closed = !posting.isOpen;
             return (
               <div
                 key={posting._id}
-                className="flex flex-col gap-4 border-b border-border py-6 sm:flex-row sm:items-center sm:gap-6"
+                className="rounded-2xl border border-border bg-card p-5 sm:p-6"
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-3">
@@ -243,7 +247,7 @@ export default function Postings() {
                 </div>
 
                 <div className="flex shrink-0 flex-wrap items-center gap-2">
-                  <Button asChild variant="outline" size="sm" className="rounded-none">
+                  <Button asChild variant="outline" size="sm">
                     <Link
                       to={`/applicants?opportunity=${posting._id}`}
                     >
@@ -253,7 +257,6 @@ export default function Postings() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="rounded-none"
                     onClick={() => handleToggleOpen(posting._id, !posting.isOpen)}
                   >
                     {posting.isOpen ? "Close" : "Reopen"}
@@ -261,7 +264,7 @@ export default function Postings() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="rounded-none text-muted-foreground"
+                    className="text-muted-foreground hover:text-destructive"
                     onClick={() =>
                       setDeleteTarget({ id: posting._id, title: posting.title })
                     }
@@ -277,7 +280,7 @@ export default function Postings() {
 
       {/* New opportunity dialog */}
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
-        <DialogContent className="max-h-[90vh] max-w-2xl gap-0 overflow-y-auto rounded-none p-0">
+        <DialogContent className="max-h-[90vh] max-w-2xl gap-0 overflow-y-auto rounded-2xl p-0">
           <DialogHeader className="sticky top-0 border-b border-border bg-background p-6">
             <DialogTitle className="text-xl font-medium tracking-tight">
               New opportunity
@@ -294,7 +297,7 @@ export default function Postings() {
                   name="title"
                   required
                   placeholder="Software Engineering Intern"
-                  className="rounded-none"
+                  className=""
                 />
               </Field>
               <Field label="Organization">
@@ -302,7 +305,7 @@ export default function Postings() {
                   name="organization"
                   required
                   placeholder="Stripe"
-                  className="rounded-none"
+                  className=""
                 />
               </Field>
               <Field label="Application deadline">
@@ -311,7 +314,7 @@ export default function Postings() {
                   type="date"
                   required
                   min={minDate}
-                  className="rounded-none"
+                  className=""
                 />
               </Field>
               <Field label="Category">
@@ -346,14 +349,24 @@ export default function Postings() {
                 <Input
                   name="location"
                   placeholder="Bengaluru / Remote"
-                  className="rounded-none"
+                  className=""
                 />
               </Field>
               <Field label="Compensation (optional)">
                 <Input
                   name="compensation"
                   placeholder="₹50,000 / month"
-                  className="rounded-none"
+                  className=""
+                />
+              </Field>
+              <Field
+                label="Domains (optional)"
+                hint="comma separated"
+                className="sm:col-span-2"
+              >
+                <Input
+                  name="tags"
+                  placeholder="ai, web, cloud"
                 />
               </Field>
               <Field label="Eligibility" className="sm:col-span-2">
@@ -361,7 +374,7 @@ export default function Postings() {
                   name="eligibility"
                   required
                   placeholder="Pre-final year students, CGPA 7.0+"
-                  className="rounded-none"
+                  className=""
                 />
               </Field>
               <Field
@@ -372,7 +385,7 @@ export default function Postings() {
                 <Input
                   name="skills"
                   placeholder="Java, SQL, Data Structures"
-                  className="rounded-none"
+                  className=""
                 />
               </Field>
               <Field label="External application link (optional)" className="sm:col-span-2">
@@ -380,7 +393,7 @@ export default function Postings() {
                   name="applyUrl"
                   type="url"
                   placeholder="https://…"
-                  className="rounded-none"
+                  className=""
                 />
               </Field>
               <Field label="Description" className="sm:col-span-2">
@@ -389,7 +402,7 @@ export default function Postings() {
                   required
                   rows={5}
                   placeholder="What will the selected candidate work on?"
-                  className="rounded-none"
+                  className=""
                 />
               </Field>
             </div>
@@ -398,13 +411,13 @@ export default function Postings() {
               <Button
                 type="button"
                 variant="outline"
-                className="rounded-none"
+                className=""
                 onClick={() => setFormOpen(false)}
                 disabled={saving}
               >
                 Cancel
               </Button>
-              <Button type="submit" className="rounded-none" disabled={saving}>
+              <Button type="submit" className="" disabled={saving}>
                 {saving ? "Publishing…" : "Publish opportunity"}
               </Button>
             </div>
@@ -416,8 +429,7 @@ export default function Postings() {
       <AlertDialog
         open={deleteTarget !== null}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
-      >
-        <AlertDialogContent className="rounded-none">
+      >            <AlertDialogContent className="rounded-2xl">
           <AlertDialogHeader>
             <AlertDialogTitle className="tracking-tight">
               Delete this opportunity?
@@ -428,11 +440,9 @@ export default function Postings() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="rounded-none">
-              Cancel
-            </AlertDialogCancel>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="rounded-none bg-foreground text-background hover:bg-foreground/90"
+              className="bg-destructive text-white hover:bg-destructive/90"
               onClick={handleDelete}
             >
               Delete

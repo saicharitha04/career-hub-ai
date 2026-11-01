@@ -21,7 +21,6 @@ function timeAgo(timestamp: number): string {
 /** Notification bell with a dropdown panel of recent events. */
 export function NotificationsBell() {
   const notifications = useQuery(api.notifications.listOwn);
-  const markRead = useMutation(api.notifications.markRead);
   const markAllRead = useMutation(api.notifications.markAllRead);
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);

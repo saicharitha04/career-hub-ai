@@ -19,7 +19,7 @@ import {
   Swords,
   Lightbulb,
 } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Link, Navigate } from "react-router";
 
 /**
@@ -54,13 +54,17 @@ export default function Dashboard() {
       .slice(0, 3);
   }, [opportunities, profile]);
 
+  // The clock is read once per mount in a lazy initializer so render stays
+  // pure; deadline labels refresh naturally with each navigation.
+  const [now] = useState(() => Date.now());
+
   const upcomingDeadlines = useMemo(
     () =>
       [...(opportunities ?? [])]
-        .filter((o) => o.isOpen && o.deadline > Date.now())
+        .filter((o) => o.isOpen && o.deadline > now)
         .sort((a, b) => a.deadline - b.deadline)
         .slice(0, 5),
-    [opportunities],
+    [opportunities, now],
   );
 
   if (isLoading) return <FullPageLoader />;
@@ -73,7 +77,7 @@ export default function Dashboard() {
     (a) => a.status !== "rejected" && a.status !== "selected",
   );
   const closingSoon = (opportunities ?? []).filter((o) => {
-    const days = (o.deadline - Date.now()) / (24 * 60 * 60 * 1000);
+    const days = (o.deadline - now) / (24 * 60 * 60 * 1000);
     return o.isOpen && days >= 0 && days <= 7;
   }).length;
 

@@ -2,10 +2,12 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 
-/** Questions and comments on a listing, oldest first, with author labels. */
+/** Questions and comments on a listing, oldest first, with author labels.
+ *  The arg is optional so a malformed URL doesn't fail validation. */
 export const listByOpportunity = query({
-  args: { opportunityId: v.id("opportunities") },
+  args: { opportunityId: v.optional(v.id("opportunities")) },
   handler: async (ctx, { opportunityId }) => {
+    if (opportunityId === undefined) return [];
     const comments = await ctx.db
       .query("comments")
       .withIndex("by_opportunity", (q) => q.eq("opportunityId", opportunityId))

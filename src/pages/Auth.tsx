@@ -1,4 +1,5 @@
 import { Wordmark } from "@/components/Brand";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -8,7 +9,7 @@ import {
 } from "@/components/ui/input-otp";
 
 import { useAuth } from "@/hooks/use-auth";
-import { ArrowRight, Loader2 } from "lucide-react";
+import { ArrowRight, Loader2, Mail } from "lucide-react";
 import { Suspense, useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
@@ -27,9 +28,9 @@ function resolveRedirectAfterAuth(
 }
 
 /**
- * Sign in / register for HIKEHIVE. One email, one code — no password to
- * remember. Students and recruiters share this flow; the workspace role is
- * chosen right after sign-in.
+ * Sign in / register for HIKEHIVE. Passwordless by design: one email, one
+ * six-digit code. Students, recruiters and admins share this flow; the
+ * workspace role is chosen right after sign-in.
  */
 function Auth({ redirectAfterAuth }: AuthProps = {}) {
   const { isLoading: authLoading, isAuthenticated, signIn } = useAuth();
@@ -39,6 +40,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
     searchParams.get("returnTo"),
     redirectAfterAuth,
   );
+  const [mode, setMode] = useState<"signin" | "register">("signin");
   const [step, setStep] = useState<"signIn" | { email: string }>("signIn");
   const [otp, setOtp] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -64,7 +66,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
       setError(
         error instanceof Error
           ? error.message
-          : "Failed to send verification code. Please try again.",
+          : "Failed to send the verification code. Please try again.",
       );
       setIsLoading(false);
     }
@@ -80,7 +82,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
       navigate(redirect);
     } catch (error) {
       console.error("OTP verification error:", error);
-      setError("The verification code you entered is incorrect.");
+      setError("That verification code isn't right. Check it and try again.");
       setIsLoading(false);
       setOtp("");
     }
@@ -95,15 +97,15 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
     } catch (error) {
       console.error("Guest login error:", error);
       setError(
-        `Failed to sign in as guest: ${error instanceof Error ? error.message : "Unknown error"}`,
+        `Couldn't sign you in as a guest: ${error instanceof Error ? error.message : "unknown error"}`,
       );
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <header className="border-b border-border">
+    <div className="app-glow flex min-h-screen flex-col bg-background">
+      <header className="border-b border-border bg-background/60 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-lg items-center justify-between px-5">
           <button
             type="button"
@@ -112,52 +114,65 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
           >
             <Wordmark />
           </button>
-          <button
-            type="button"
-            onClick={() => navigate("/")}
-            className="text-[11px] tracking-[0.16em] text-muted-foreground uppercase transition-colors hover:text-foreground"
-          >
-            Home
-          </button>
+          <div className="flex items-center gap-3">
+            <ThemeToggle />
+            <button
+              type="button"
+              onClick={() => navigate("/")}
+              className="text-[11px] tracking-[0.16em] text-muted-foreground uppercase transition-colors hover:text-foreground"
+            >
+              Home
+            </button>
+          </div>
         </div>
       </header>
 
-      <main className="flex flex-1 items-center justify-center px-5 py-14">
+      <main className="flex flex-1 items-center justify-center px-5 py-12">
         <div className="w-full max-w-lg">
           {step === "signIn" ? (
-            <div className="border border-border bg-card">
+            <div className="rounded-2xl border border-border bg-card">
               <div className="border-b border-border p-6 sm:p-8">
-                <p className="text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
-                  Sign in · Register
+                <p className="text-[11px] tracking-[0.22em] text-accent uppercase">
+                  Welcome to the hive
                 </p>
-                <h1 className="mt-3 text-2xl font-medium tracking-tight">
-                  Get Started
+                <h1 className="mt-3 text-2xl font-semibold tracking-tight">
+                  {mode === "signin"
+                    ? "Sign in to HIKEHIVE"
+                    : "Create your account"}
                 </h1>
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  Enter your email to log in or create an account. We&apos;ll
-                  send a six-digit code — no password needed.
+                  {mode === "signin"
+                    ? "Enter your email and we'll send a six-digit code — no password to remember."
+                    : "Same flow whether you're here to find opportunities or post them: email, code, done."}
                 </p>
               </div>
 
               <form onSubmit={handleEmailSubmit}>
                 <div className="p-6 sm:p-8">
-                  <label className="text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
+                  <label
+                    htmlFor="auth-email"
+                    className="text-xs font-medium text-muted-foreground"
+                  >
                     Email address
                   </label>
-                  <div className="mt-2 flex items-stretch gap-2">
-                    <Input
-                      name="email"
-                      type="email"
-                      placeholder="name@example.com"
-                      className="h-11 rounded-none"
-                      disabled={isLoading}
-                      required
-                      autoFocus
-                    />
+                  <div className="mt-1.5 flex items-stretch gap-2">
+                    <div className="relative flex-1">
+                      <Mail className="absolute top-3 left-3 size-4 text-muted-foreground" />
+                      <Input
+                        id="auth-email"
+                        name="email"
+                        type="email"
+                        placeholder="you@university.edu"
+                        className="h-11 pl-9"
+                        disabled={isLoading}
+                        required
+                        autoFocus
+                      />
+                    </div>
                     <Button
                       type="submit"
                       size="icon"
-                      className="h-11 w-11 shrink-0 rounded-none bg-foreground text-background hover:bg-foreground/90"
+                      className="cta-gradient h-11 w-11 shrink-0 text-white"
                       disabled={isLoading}
                       aria-label="Continue"
                     >
@@ -168,7 +183,9 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                       )}
                     </Button>
                   </div>
-                  {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
+                  {error && (
+                    <p className="mt-3 text-sm text-destructive">{error}</p>
+                  )}
 
                   <div className="mt-6 flex items-center gap-4">
                     <span className="h-px flex-1 bg-border" />
@@ -181,32 +198,46 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                   <Button
                     type="button"
                     variant="outline"
-                    className="mt-6 h-11 w-full rounded-none"
+                    className="mt-6 h-11 w-full"
                     onClick={handleGuestLogin}
                     disabled={isLoading}
                   >
-                    Continue as guest
+                    Continue as guest — poke around first
                   </Button>
 
                   <p className="mt-5 text-xs leading-5 text-muted-foreground">
-                    Students and recruiters share this flow — you&apos;ll pick
-                    your workspace after signing in.
+                    Students, recruiters and admins all sign in here; you'll
+                    pick your workspace on the next screen.{" "}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setMode((m) => (m === "signin" ? "register" : "signin"))
+                      }
+                      className="text-foreground underline underline-offset-2"
+                    >
+                      {mode === "signin"
+                        ? "New here? Create an account"
+                        : "Already have one? Sign in"}
+                    </button>
                   </p>
                 </div>
               </form>
             </div>
           ) : (
-            <div className="border border-border bg-card">
+            <div className="rounded-2xl border border-border bg-card">
               <div className="border-b border-border p-6 sm:p-8">
-                <p className="text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
+                <p className="text-[11px] tracking-[0.22em] text-accent uppercase">
                   Step 2 of 2
                 </p>
-                <h1 className="mt-3 text-2xl font-medium tracking-tight">
+                <h1 className="mt-3 text-2xl font-semibold tracking-tight">
                   Check your email
                 </h1>
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  We&apos;ve sent a six-digit code to{" "}
-                  <span className="text-foreground">{step.email}</span>
+                  We sent a six-digit code to{" "}
+                  <span className="font-medium text-foreground">
+                    {step.email}
+                  </span>
+                  . It expires in 15 minutes.
                 </p>
               </div>
 
@@ -222,8 +253,14 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                       maxLength={6}
                       disabled={isLoading}
                       onKeyDown={(e) => {
-                        if (e.key === "Enter" && otp.length === 6 && !isLoading) {
-                          const form = (e.target as HTMLElement).closest("form");
+                        if (
+                          e.key === "Enter" &&
+                          otp.length === 6 &&
+                          !isLoading
+                        ) {
+                          const form = (e.target as HTMLElement).closest(
+                            "form",
+                          );
                           if (form) form.requestSubmit();
                         }
                       }}
@@ -244,7 +281,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
 
                   <Button
                     type="submit"
-                    className="mt-6 h-11 w-full rounded-none bg-foreground text-background hover:bg-foreground/90"
+                    className="cta-gradient mt-6 h-11 w-full text-white"
                     disabled={isLoading || otp.length !== 6}
                   >
                     {isLoading ? (
@@ -275,7 +312,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                       disabled={isLoading}
                       className="text-xs text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline"
                     >
-                      Try again
+                      Didn't get it? Try again
                     </button>
                   </div>
                 </div>

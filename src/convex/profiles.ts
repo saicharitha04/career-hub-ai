@@ -2,6 +2,18 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 
+/** Set the display name stored on the auth user record. */
+export const setName = mutation({
+  args: { name: v.string() },
+  handler: async (ctx, { name }) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
+    const clean = name.trim();
+    if (!clean) throw new Error("Display name can't be empty");
+    await ctx.db.patch(userId, { name: clean });
+  },
+});
+
 /** The signed-in user's profile document (created on first save). */
 export const getOwn = query({
   args: {},

@@ -1,93 +1,131 @@
 # HIKEHIVE — AI Powered Student Career Hub
 
 HIKEHIVE is a student career platform: one feed for internships, hackathons,
-placement drives, competitive exams, skill programs and workshops, with
-application tracking for students and a posting workspace for recruiters.
+placement drives, competitive exams, skill programs and workshops — with
+application tracking, a recruiter workspace, an admin area and clearly-labelled
+match tools. Dark-mode first, built for speed.
 
-**Version 1 scope** (what ships in this codebase):
+## What ships in this codebase
 
-- Opportunity feed — search, filter (category, mode), sort, save a shortlist
-- Student flow — browse, save, apply, track applications through the pipeline
-- Recruiter flow — publish opportunities, review applicants, update statuses
-- Role selection (student / recruiter) with role-guarded routes
+**Students**
+- Opportunity feed — search, filter (category, skill, mode), sort, saved shortlist
+- Full detail page per listing with a Q&A comment thread
+- One-click apply, application tracking through the pipeline
+- Interview slots scheduled by recruiters, shown on the tracker
+- Notification bell — application updates and event notifications
+- Profile + resume upload (PDF/DOCX to Convex storage)
+- Dashboard home — counts, skill-ranked recommendations, deadlines, notifications
+- AI tool screens: Skill Match, Hackathon Matchmaker, Idea Generator
 
-The AI modules (recommendations, resume matching, hackathon matchmaker, idea
-generator, career assistant) are **not implemented yet** and are labeled
-"In development" on the landing page. They are deliberately kept out of
-version 1.
+**Recruiters**
+- Publish/close/delete internships, hackathons, drives, exams and workshops
+- Applicant review queue, pipeline status control, interview scheduling
+
+**Administrators**
+- Platform stats, application-pipeline breakdown, account and role management,
+  opportunity management
+
+**Roles** — student, recruiter and admin, chosen at `/role` right after sign-in
+and switchable from the account menu.
+
+## Honest scope notes
+
+The three "AI tool" screens use **deterministic local scoring and a curated
+idea library** — real, working logic, but not a trained model. Every screen
+says so in place. The generative/NLP layer (Python FastAPI service: resume
+parsing, recommendations, idea generation, career assistant) is the planned
+next module and is not yet connected. Payments and DMs are out of scope.
 
 ## Tech stack
 
 - **Frontend:** React 19 + Vite + TypeScript, Tailwind CSS v4, shadcn/ui,
-  React Router v7, Framer Motion, Lucide icons
-- **Backend & database:** Convex (reactive queries/mutations, schema-validated
-  tables, TypeScript end to end)
-- **Auth:** Convex Auth — email OTP + guest sign-in, roles stored per user
+  React Router v7, next-themes (dark default + toggle), Framer Motion, Lucide
+- **Backend & database:** Convex — reactive queries/mutations, schema-validated
+  tables, file storage for resumes, TypeScript end to end
+- **Auth:** Convex Auth — email OTP + guest sign-in; roles stored per user
 
-> Architecture note: the original project documentation specifies a Java
-> Spring Boot backend with a Python AI service and PostgreSQL/MySQL. This
-> environment (Freebuff) runs a managed Vite + Convex stack, so the backend is
-> implemented with Convex instead of a JVM + relational database. The frontend
-> is written strictly against an API layer (`src/convex/*`), so each file maps
-> 1:1 onto a future Spring Boot REST controller:
+> Architecture note: the project documentation specifies a Java Spring Boot
+> backend with Python AI services on MySQL. This environment (Freebuff) runs a
+> managed Vite + Convex stack, so the backend is implemented with Convex. The
+> frontend talks only to `src/convex/*`, which maps 1:1 onto a future Spring
+> Boot REST layer:
 >
-> | Convex module             | Future Spring Boot equivalent |
-> | ------------------------- | ----------------------------- |
-> | `opportunities.ts`        | `OpportunityController`       |
-> | `applications.ts`         | `ApplicationController`       |
-> | `saves.ts`                | `SavedOpportunityController`  |
-> | `roles.ts`                | `UserController`              |
-> | `schema.ts`               | JPA entities                  |
+> | Convex module            | Future Spring Boot equivalent |
+> | ------------------------ | ----------------------------- |
+> | `opportunities.ts`       | `OpportunityController`       |
+> | `applications.ts`        | `ApplicationController`       |
+> | `saves.ts`               | `SavedOpportunityController`  |
+> | `profiles.ts`            | `ProfileController`           |
+> | `notifications.ts`       | `NotificationController`      |
+> | `comments.ts`            | `CommentController`           |
+> | `ideas.ts`               | `IdeaController`              |
+> | `admin.ts`               | `AdminController`             |
+> | `roles.ts`               | `UserController`              |
+> | `schema.ts`              | JPA entities                  |
 
 ## Project structure
 
 ```
 src/
-  components/        AppShell, Brand (logo), StatusBadge, ui/ (shadcn)
-  convex/            Backend: schema.ts + opportunities/applications/saves/roles
-  hooks/             use-auth
-  lib/               opportunities.ts — shared labels, dates, helpers
+  components/     AppShell (header/nav), Brand, ThemeToggle, NotificationsBell, StatusBadge, ui/
+  convex/         Backend: schema + opportunities/applications/saves/profiles/
+                  notifications/comments/ideas/admin/roles/files
+  hooks/          use-auth
+  lib/            opportunities.ts (labels, scoring helpers), resume.ts (upload), utils.ts
   pages/
-    Landing.tsx      Marketing site (hero, platform, roadmap, about)
-    Auth.tsx         Sign in / register (email OTP, guest)
-    RoleSelect.tsx   Choose student or recruiter workspace
-    Dashboard.tsx    Role-aware redirect
-    Feed.tsx         Opportunity feed — the main screen
-    Applications.tsx Student application tracking
-    Postings.tsx     Recruiter: create/manage opportunities
-    Applicants.tsx   Recruiter: review applicants, update statuses
+    Landing.tsx            Marketing site (hero, stats, features, AI tools, testimonials, contact)
+    Auth.tsx               Passwordless sign in / register (email OTP, guest)
+    RoleSelect.tsx         Choose student / recruiter / admin + display name
+    Dashboard.tsx          Student dashboard home
+    Feed.tsx               Opportunity feed — the main screen
+    OpportunityDetail.tsx  One listing: details, actions, comment thread
+    Applications.tsx       Student application tracking (+ interview slots)
+    Postings.tsx           Recruiter: create/manage postings (+ domain tags)
+    Applicants.tsx         Recruiter: review applicants, statuses, scheduling
+    Profile.tsx            Profile form + resume upload
+    ToolsMatch.tsx         Skill Match (resume-to-internship)
+    ToolsHackathons.tsx    Hackathon Matchmaker
+    ToolsIdeas.tsx         Idea Generator (+ saved ideas)
+    Admin.tsx              Admin workspace
 ```
 
 ## Data model
 
-- `users` — auth fields + `role` (`student` | `recruiter` | …)
-- `opportunities` — title, organization, description, `category`
+- `users` — auth fields + `role` (student / recruiter / admin)
+- `opportunities` — title, organization, description, category
   (internship / hackathon / placement / exam / skill / workshop), skills[],
-  eligibility, `mode` (remote / onsite / hybrid), location, deadline,
-  compensation, applyUrl, isOpen, createdBy
-- `applications` — opportunityId, studentId, `status` (applied → under_review →
-  shortlisted → interview → selected / rejected), timestamps
-- `saved` — studentId + opportunityId shortlist entries
+  tags[] (domains), eligibility, mode, location, deadline, compensation,
+  applyUrl, isOpen, createdBy
+- `applications` — opportunityId, studentId, status (applied → under_review →
+  shortlisted → interview → selected / rejected), optional interviewTime
+- `saved` — student shortlist entries
+- `profiles` — headline, phone, education, graduation year, skills[], interests[],
+  goals, resume metadata (file lives in Convex storage)
+- `notifications` — per-user events (application updates, announcements)
+- `comments` — per-opportunity Q&A thread
+- `savedIdeas` — ideas kept from the Idea Generator
 
-Indexes: `opportunities.by_deadline / by_creator / by_category`,
-`applications.by_student / by_opportunity / by_student_opportunity`,
-`saved.by_student / by_student_opportunity`.
-
-The feed is seeded with demo opportunities on first load
+The feed seeds itself with realistic demo listings on first load
 (`opportunities.ensureSeed`) so a fresh account lands on a browsable platform.
 
 ## Routes
 
-| Route           | Access   | Screen                                    |
-| --------------- | -------- | ----------------------------------------- |
-| `/`             | public   | Landing page                              |
-| `/auth`         | public   | Sign in / register (supports `?returnTo=`)|
-| `/role`         | signed in| Choose student / recruiter workspace      |
-| `/dashboard`    | signed in| Redirects to `/feed` or `/postings`       |
-| `/feed`         | signed in| Opportunity feed (main screen)            |
-| `/applications` | student  | Application tracking                      |
-| `/postings`     | recruiter| Create & manage postings                  |
-| `/applicants`   | recruiter| Review applicants, update statuses        |
+| Route               | Access   | Screen                                    |
+| ------------------- | -------- | ----------------------------------------- |
+| `/`                 | public   | Landing page                              |
+| `/auth`             | public   | Sign in / register (`?returnTo=` support) |
+| `/role`             | signed in| Pick workspace + display name             |
+| `/dashboard`        | role-routed | Student home / recruiter / admin redirect |
+| `/feed`             | signed in| Opportunity feed (`?category=` filters)   |
+| `/opportunities/:id`| signed in| Listing detail + comments                 |
+| `/applications`     | student  | Application tracking                      |
+| `/postings`         | recruiter| Create & manage postings                  |
+| `/applicants`       | recruiter| Review applicants, schedule interviews    |
+| `/profile`          | signed in| Profile + resume upload                   |
+| `/tools/match`      | signed in| Skill Match                               |
+| `/tools/hackathons` | signed in| Hackathon Matchmaker                      |
+| `/tools/ideas`      | signed in| Idea Generator + saved ideas              |
+| `/admin`            | admin    | Platform control                          |
 
 ## Running the project
 
@@ -111,13 +149,14 @@ Environment variables are managed by the platform (see the Keys tab); `.env`
 files are not edited by hand. Email sign-in requires the deployment's
 `VLY_INTEGRATION_KEY`; guest sign-in works without any configuration.
 
-## Design system — Minimalism
+## Design system — "Hive dark"
 
-Near-monochrome palette with a faint cool ink tint, hairline borders, square
-corners (`--radius: 0.125rem`), no shadows, tabular numerals, uppercase
-letter-spaced labels, and generous white space. All tokens live in
-`src/index.css` (oklch format) and flow through the shadcn/ui variables, so
-the whole app themes from one place.
+Deep navy/charcoal backgrounds (dark is the default, with a working light
+mode), royal blue primary and teal/cyan accents, blue→teal gradient CTAs,
+rounded cards, soft indigo glow behind heroes, mono type for technical labels.
+All tokens live in `src/index.css` (oklch) and flow through the shadcn/ui
+variables, plus three utilities: `.text-gradient`, `.cta-gradient`,
+`.app-glow`.
 
 ---
 
@@ -131,6 +170,6 @@ the whole app themes from one place.
   routes in `RequireAuth`.
 - Pages go in `src/pages`, components in `src/components`, shadcn primitives
   in `src/components/ui`.
-- Use toast (sonner) for confirmations and errors; use dialogs (with internal
-  scroll) instead of new pages where reasonable.
+- Use toast (sonner) for confirmations and errors; dialogs should scroll
+  internally so content never clips.
 - Keep designs responsive; avoid nested cards and shadows.

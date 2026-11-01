@@ -1,15 +1,10 @@
 import { useTheme } from "next-themes";
 import { Moon, Sun } from "lucide-react";
-import { useEffect, useState } from "react";
 
-/** Dark/light toggle. Dark is the default; guarded until mounted to avoid a
- *  theme flash. */
+/** Dark/light toggle. Dark is the default theme. */
 export function ThemeToggle() {
   const { resolvedTheme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-
-  const isDark = mounted && resolvedTheme !== "light";
+  const isDark = resolvedTheme !== "light";
 
   return (
     <button

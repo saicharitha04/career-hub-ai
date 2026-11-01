@@ -168,14 +168,16 @@ export const setStatus = mutation({
     });
 
     const student = await ctx.db.get(application.studentId);
+    const studentName =
+      student?.name?.trim() || student?.email?.split("@")[0] || "there";
     await ctx.db.insert("notifications", {
       userId: application.studentId,
       kind: "application",
       title: `Application update — ${STATUS_LABELS[status] ?? status}`,
       body:
         status === "interview" && interviewTime
-          ? `${opportunity.title} moved to Interview. Your slot: ${new Date(interviewTime).toUTCString()}.`
-          : `Your application to ${opportunity.title} is now ${STATUS_LABELS[status] ?? status}.`,
+          ? `${studentName}, ${opportunity.title} moved to Interview. Your slot: ${new Date(interviewTime).toUTCString()}.`
+          : `${studentName}, your application to ${opportunity.title} is now ${STATUS_LABELS[status] ?? status}.`,
       link: "/applications",
       read: false,
       createdAt: Date.now(),
