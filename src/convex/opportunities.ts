@@ -16,13 +16,13 @@ async function requireUser(ctx: QueryCtx | MutationCtx) {
   return userId;
 }
 
-async function requireRecruiter(ctx: QueryCtx | MutationCtx) {
+async function requireManager(ctx: QueryCtx | MutationCtx) {
   const userId = await requireUser(ctx);
   const user = await ctx.db.get(userId);
-  if (user?.role !== ROLES.RECRUITER) {
-    throw new Error("Only recruiter accounts can manage opportunities");
+  if (user?.role !== ROLES.RECRUITER && user?.role !== ROLES.ADMIN) {
+    throw new Error("Only recruiter or admin accounts can manage opportunities");
   }
-  return userId;
+  return { userId, isAdmin: user?.role === ROLES.ADMIN };
 }
 
 /** Every opportunity in the feed, nearest deadline first. */
@@ -31,6 +31,16 @@ export const list = query({
   handler: async (ctx) => {
     const opportunities = await ctx.db.query("opportunities").collect();
     return opportunities.sort((a, b) => a.deadline - b.deadline);
+  },
+});
+
+/** One opportunity for its detail page. Optional so a malformed URL 404s
+ *  gracefully instead of failing argument validation. */
+export const get = query({
+  args: { opportunityId: v.optional(v.id("opportunities")) },
+  handler: async (ctx, { opportunityId }) => {
+    if (opportunityId === undefined) return null;
+    return await ctx.db.get(opportunityId);
   },
 });
 
@@ -56,6 +66,7 @@ export const create = mutation({
     description: v.string(),
     category: categoryValidator,
     skills: v.array(v.string()),
+    tags: v.optional(v.array(v.string())),
     eligibility: v.string(),
     mode: modeValidator,
     location: v.optional(v.string()),
@@ -64,13 +75,14 @@ export const create = mutation({
     applyUrl: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const userId = await requireRecruiter(ctx);
+    const { userId } = await requireManager(ctx);
 
     const title = args.title.trim();
     const organization = args.organization.trim();
     const description = args.description.trim();
     const eligibility = args.eligibility.trim();
     const skills = args.skills.map((s) => s.trim()).filter(Boolean);
+    const tags = args.tags?.map((s) => s.trim().toLowerCase()).filter(Boolean);
     const location = args.location?.trim();
 
     if (!title || !organization || !description || !eligibility) {
@@ -86,6 +98,7 @@ export const create = mutation({
       description,
       category: args.category,
       skills,
+      tags: tags && tags.length > 0 ? tags : undefined,
       eligibility,
       mode: args.mode,
       location: location ? location : undefined,
@@ -99,26 +112,26 @@ export const create = mutation({
   },
 });
 
-/** Close or reopen one of the recruiter's own opportunities. */
+/** Close or reopen an opportunity — its poster or an admin. */
 export const setOpen = mutation({
   args: { opportunityId: v.id("opportunities"), isOpen: v.boolean() },
   handler: async (ctx, { opportunityId, isOpen }) => {
-    const userId = await requireRecruiter(ctx);
+    const { userId, isAdmin } = await requireManager(ctx);
     const opportunity = await ctx.db.get(opportunityId);
-    if (!opportunity || opportunity.createdBy !== userId) {
+    if (!opportunity || (opportunity.createdBy !== userId && !isAdmin)) {
       throw new Error("Opportunity not found");
     }
     await ctx.db.patch(opportunityId, { isOpen });
   },
 });
 
-/** Delete one of the recruiter's own opportunities and its applications. */
+/** Delete an opportunity and its applications — its poster or an admin. */
 export const remove = mutation({
   args: { opportunityId: v.id("opportunities") },
   handler: async (ctx, { opportunityId }) => {
-    const userId = await requireRecruiter(ctx);
+    const { userId, isAdmin } = await requireManager(ctx);
     const opportunity = await ctx.db.get(opportunityId);
-    if (!opportunity || opportunity.createdBy !== userId) {
+    if (!opportunity || (opportunity.createdBy !== userId && !isAdmin)) {
       throw new Error("Opportunity not found");
     }
     const applications = await ctx.db
@@ -151,6 +164,7 @@ export const ensureSeed = mutation({
           "Join a payments infrastructure team for a 12-week summer internship. You will ship production code on services that move money for millions of businesses, with a dedicated mentor and a scope of your own from week one.",
         category: "internship" as const,
         skills: ["Java", "Data Structures", "APIs", "SQL"],
+        tags: ["backend", "systems", "web"],
         eligibility: "Pre-final or final year students, any engineering branch",
         mode: "hybrid" as const,
         location: "Bengaluru",
@@ -164,6 +178,7 @@ export const ensureSeed = mutation({
           "Work alongside product engineers on the Figma design editor. You will own a feature end to end — from prototype to release — and pair with designers on interaction details.",
         category: "internship" as const,
         skills: ["TypeScript", "React", "CSS", "Accessibility"],
+        tags: ["web", "design"],
         eligibility: "Students graduating in 2027 or later",
         mode: "remote" as const,
         compensation: "₹60,000 / month",
@@ -176,6 +191,7 @@ export const ensureSeed = mutation({
           "A 36-hour in-person hackathon with tracks in climate, health, education and open innovation. Workshops, mentorship from industry engineers and a demo day in front of a live jury.",
         category: "hackathon" as const,
         skills: ["Any stack", "Prototyping", "Pitching"],
+        tags: ["ai", "climate", "health", "education"],
         eligibility: "Enrolled university students, all levels",
         mode: "onsite" as const,
         location: "Cambridge, MA",
@@ -189,6 +205,7 @@ export const ensureSeed = mutation({
           "The internal selection round for SIH. Teams of six solve problem statements from real industry partners; selected teams advance to the grand finale.",
         category: "hackathon" as const,
         skills: ["Problem Solving", "Teamwork", "Any stack"],
+        tags: ["open", "ai", "web"],
         eligibility: "Teams of 6 students with one faculty mentor",
         mode: "onsite" as const,
         location: "Campus edition",
@@ -201,6 +218,7 @@ export const ensureSeed = mutation({
           "On-campus hiring drive for analyst roles across risk, finance and technology consulting. The process includes an aptitude round, a case interview and a technical discussion.",
         category: "placement" as const,
         skills: ["Aptitude", "Communication", "Excel"],
+        tags: ["finance", "consulting"],
         eligibility: "Final year students, CGPA 7.0 and above",
         mode: "onsite" as const,
         location: "Hyderabad",
@@ -213,6 +231,7 @@ export const ensureSeed = mutation({
           "The national-level competitive examination for entry into the civil services. Two objective papers on the same day, qualifying in nature for the mains examination.",
         category: "exam" as const,
         skills: ["General Studies", "CSAT", "Current Affairs"],
+        tags: ["civil-services"],
         eligibility: "Graduates aged 21–32 (relaxation as per category rules)",
         mode: "onsite" as const,
         location: "Exam centres nationwide",
@@ -224,6 +243,7 @@ export const ensureSeed = mutation({
           "A self-paced skill program covering core Google Cloud services, deployment and monitoring. Includes lab credits and a practice assessment before the certification exam.",
         category: "skill" as const,
         skills: ["Cloud", "Linux", "Networking"],
+        tags: ["cloud", "devops"],
         eligibility: "Open to all students",
         mode: "remote" as const,
         compensation: "50% exam discount for students",
@@ -236,6 +256,7 @@ export const ensureSeed = mutation({
           "A two-day hands-on workshop on building and deploying full-stack applications, with code review sessions from working engineers and a certificate of completion.",
         category: "workshop" as const,
         skills: ["JavaScript", "Git", "Databases"],
+        tags: ["web", "tools"],
         eligibility: "Open to all students, limited to 60 seats",
         mode: "hybrid" as const,
         location: "Pune",
@@ -247,6 +268,7 @@ export const ensureSeed = mutation({
           "A research-oriented internship building recommendation and forecasting models for consumer health products. Publishable work with a strong publication track record on the team.",
         category: "internship" as const,
         skills: ["Python", "Pandas", "Machine Learning", "Statistics"],
+        tags: ["ai", "data", "health"],
         eligibility: "Final year students or recent graduates",
         mode: "hybrid" as const,
         location: "Bengaluru",
@@ -259,6 +281,7 @@ export const ensureSeed = mutation({
           "The national hiring test for graduate engineer trainees. Online aptitude, programming and communication assessments followed by interviews for shortlisted candidates.",
         category: "exam" as const,
         skills: ["Aptitude", "Programming", "Communication"],
+        tags: ["general"],
         eligibility: "Pre-final and final year engineering students",
         mode: "remote" as const,
         compensation: "₹3.6–6.8 LPA",

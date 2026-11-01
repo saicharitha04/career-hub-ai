@@ -101,6 +101,21 @@ export const apply = mutation({
       createdAt: now,
       updatedAt: now,
     });
+
+    // Let the poster know right away.
+    if (opportunity.createdBy) {
+      const applicant =
+        user.name?.trim() || user.email?.split("@")[0] || "A student";
+      await ctx.db.insert("notifications", {
+        userId: opportunity.createdBy,
+        kind: "application",
+        title: "New application",
+        body: `${applicant} applied to ${opportunity.title}.`,
+        link: "/applicants",
+        read: false,
+        createdAt: now,
+      });
+    }
   },
 });
 
@@ -117,13 +132,26 @@ export const withdraw = mutation({
   },
 });
 
-/** Recruiter moves an application through the hiring pipeline. */
+const STATUS_LABELS: Record<string, string> = {
+  applied: "Applied",
+  under_review: "Under review",
+  shortlisted: "Shortlisted",
+  interview: "Interview",
+  selected: "Selected",
+  rejected: "Rejected",
+};
+
+/**
+ * Recruiter moves an application through the pipeline. Moving to "interview"
+ * optionally carries a scheduled time the student sees on their tracker.
+ */
 export const setStatus = mutation({
   args: {
     applicationId: v.id("applications"),
     status: applicationStatusValidator,
+    interviewTime: v.optional(v.number()),
   },
-  handler: async (ctx, { applicationId, status }) => {
+  handler: async (ctx, { applicationId, status, interviewTime }) => {
     const userId = await requireUser(ctx);
     const application = await ctx.db.get(applicationId);
     if (!application) throw new Error("Application not found");
@@ -131,6 +159,26 @@ export const setStatus = mutation({
     if (!opportunity || opportunity.createdBy !== userId) {
       throw new Error("This application belongs to another recruiter");
     }
-    await ctx.db.patch(applicationId, { status, updatedAt: Date.now() });
+
+    await ctx.db.patch(applicationId, {
+      status,
+      interviewTime:
+        status === "interview" ? interviewTime ?? application.interviewTime : undefined,
+      updatedAt: Date.now(),
+    });
+
+    const student = await ctx.db.get(application.studentId);
+    await ctx.db.insert("notifications", {
+      userId: application.studentId,
+      kind: "application",
+      title: `Application update — ${STATUS_LABELS[status] ?? status}`,
+      body:
+        status === "interview" && interviewTime
+          ? `${opportunity.title} moved to Interview. Your slot: ${new Date(interviewTime).toUTCString()}.`
+          : `Your application to ${opportunity.title} is now ${STATUS_LABELS[status] ?? status}.`,
+      link: "/applications",
+      read: false,
+      createdAt: Date.now(),
+    });
   },
 });

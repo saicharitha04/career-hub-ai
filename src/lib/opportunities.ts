@@ -75,3 +75,44 @@ export function displayName(user: { name?: string; email?: string } | null | und
   if (!user) return "";
   return user.name?.trim() || user.email?.split("@")[0] || "there";
 }
+
+/**
+ * Deterministic skill-overlap scoring used by the match tools and the
+ * dashboard's recommendations. `required` is what an opportunity asks for;
+ * `owned` is what the student has. Case-insensitive, exact-token match —
+ * no external AI service is involved, and the UI says so.
+ */
+export function skillOverlap(required: string[], owned: string[]): {
+  percent: number;
+  matched: string[];
+  missing: string[];
+} {
+  const norm = (s: string) => s.trim().toLowerCase();
+  const ownedSet = new Set(owned.map(norm));
+  const matched = required.filter((s) => ownedSet.has(norm(s)));
+  const missing = required.filter((s) => !ownedSet.has(norm(s)));
+  const percent =
+    required.length === 0
+      ? 0
+      : Math.round((matched.length / required.length) * 100);
+  return { percent, matched, missing };
+}
+
+/** The project domains the hackathon matchmaker and idea generator know. */
+export const DOMAINS = [
+  { value: "ai", label: "AI / ML" },
+  { value: "web", label: "Web" },
+  { value: "mobile", label: "Mobile" },
+  { value: "cloud", label: "Cloud / DevOps" },
+  { value: "data", label: "Data" },
+  { value: "security", label: "Security" },
+  { value: "health", label: "Health" },
+  { value: "climate", label: "Climate" },
+  { value: "education", label: "Education" },
+  { value: "finance", label: "FinTech" },
+  { value: "open", label: "Open Innovation" },
+];
+
+export function domainLabel(value: string): string {
+  return DOMAINS.find((d) => d.value === value)?.label ?? value;
+}

@@ -4,6 +4,7 @@ import { RequireAuth } from "@/components/RequireAuth";
 import { VlyToolbar } from "../vly-toolbar-readonly.tsx";
 import { ConvexAuthProvider } from "@convex-dev/auth/react";
 import { ConvexReactClient } from "convex/react";
+import { ThemeProvider } from "next-themes";
 import React, { StrictMode, useEffect, lazy, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Route, Routes, useLocation } from "react-router";
@@ -15,9 +16,15 @@ const AuthPage = lazy(() => import("./pages/Auth.tsx"));
 const Dashboard = lazy(() => import("./pages/Dashboard.tsx"));
 const RoleSelect = lazy(() => import("./pages/RoleSelect.tsx"));
 const Feed = lazy(() => import("./pages/Feed.tsx"));
+const OpportunityDetail = lazy(() => import("./pages/OpportunityDetail.tsx"));
 const Applications = lazy(() => import("./pages/Applications.tsx"));
 const Postings = lazy(() => import("./pages/Postings.tsx"));
 const Applicants = lazy(() => import("./pages/Applicants.tsx"));
+const Profile = lazy(() => import("./pages/Profile.tsx"));
+const ToolsMatch = lazy(() => import("./pages/ToolsMatch.tsx"));
+const ToolsHackathons = lazy(() => import("./pages/ToolsHackathons.tsx"));
+const ToolsIdeas = lazy(() => import("./pages/ToolsIdeas.tsx"));
+const Admin = lazy(() => import("./pages/Admin.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 
 // Simple loading fallback for route transitions
@@ -120,6 +127,7 @@ createRoot(document.getElementById("root")!).render(
         <VlyToolbar />
       </ToolbarErrorBoundary>
       <ConvexAuthProvider client={convex}>
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
         <BrowserRouter>
           <RouteSyncer />
           <Suspense fallback={<RouteLoading />}>
@@ -154,10 +162,58 @@ createRoot(document.getElementById("root")!).render(
                 }
               />
               <Route
+                path="/opportunities/:id"
+                element={
+                  <RequireAuth>
+                    <OpportunityDetail />
+                  </RequireAuth>
+                }
+              />
+              <Route
                 path="/applications"
                 element={
                   <RequireAuth>
                     <Applications />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/profile"
+                element={
+                  <RequireAuth>
+                    <Profile />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/tools/match"
+                element={
+                  <RequireAuth>
+                    <ToolsMatch />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/tools/hackathons"
+                element={
+                  <RequireAuth>
+                    <ToolsHackathons />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/tools/ideas"
+                element={
+                  <RequireAuth>
+                    <ToolsIdeas />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/admin"
+                element={
+                  <RequireAuth>
+                    <Admin />
                   </RequireAuth>
                 }
               />
@@ -182,6 +238,7 @@ createRoot(document.getElementById("root")!).render(
           </Suspense>
         </BrowserRouter>
         <Toaster />
+        </ThemeProvider>
       </ConvexAuthProvider>
     </RootErrorBoundary>
   </StrictMode>,

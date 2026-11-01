@@ -20,8 +20,8 @@ export const roleValidator = v.union(
 );
 export type Role = Infer<typeof roleValidator>;
 
-// Opportunity taxonomy — interns, hackathons, placements, exams, skill
-// programs and workshops all live in one feed, discriminated by category.
+// Opportunity taxonomy — internships, hackathons, placement drives, exams,
+// skill programs and workshops all live in one feed.
 export const categoryValidator = v.union(
   v.literal("internship"),
   v.literal("hackathon"),
@@ -50,6 +50,13 @@ export const applicationStatusValidator = v.union(
 );
 export type ApplicationStatus = Infer<typeof applicationStatusValidator>;
 
+export const notificationKindValidator = v.union(
+  v.literal("application"),
+  v.literal("deadline"),
+  v.literal("system"),
+);
+export type NotificationKind = Infer<typeof notificationKindValidator>;
+
 const schema = defineSchema(
   {
     // default auth tables using convex auth.
@@ -64,7 +71,7 @@ const schema = defineSchema(
       isAnonymous: v.optional(v.boolean()), // is the user anonymous. do not remove
 
       role: v.optional(roleValidator), // role of the user. do not remove
-    }).index("email", [ "email" ]), // index for the email. do not remove or modify
+    }).index("email", ["email"]), // index for the email. do not remove or modify
 
     // A single listing in the feed: internship, hackathon, placement drive,
     // competitive exam, skill program or workshop. Seeded entries have no
@@ -75,6 +82,9 @@ const schema = defineSchema(
       description: v.string(),
       category: categoryValidator,
       skills: v.array(v.string()),
+      // Domain tags (e.g. "ai", "web", "climate") power the hackathon
+      // matchmaker and idea suggestions.
+      tags: v.optional(v.array(v.string())),
       eligibility: v.string(),
       mode: modeValidator,
       location: v.optional(v.string()),
@@ -90,11 +100,13 @@ const schema = defineSchema(
       .index("by_category", ["category"]),
 
     // A student's application to one opportunity. Status is owned by the
-    // recruiter who posted the opportunity.
+    // recruiter who posted the opportunity; interviewTime is set when the
+    // recruiter schedules the interview.
     applications: defineTable({
       opportunityId: v.id("opportunities"),
       studentId: v.id("users"),
       status: applicationStatusValidator,
+      interviewTime: v.optional(v.number()),
       note: v.optional(v.string()),
       createdAt: v.number(),
       updatedAt: v.number(),
@@ -111,6 +123,56 @@ const schema = defineSchema(
     })
       .index("by_student", ["studentId"])
       .index("by_student_opportunity", ["studentId", "opportunityId"]),
+
+    // The signed-in user's career profile: what the match tools score
+    // against, plus the uploaded resume.
+    profiles: defineTable({
+      userId: v.id("users"),
+      headline: v.optional(v.string()),
+      phone: v.optional(v.string()),
+      education: v.optional(v.string()),
+      graduationYear: v.optional(v.string()),
+      skills: v.array(v.string()),
+      interests: v.array(v.string()),
+      goals: v.optional(v.string()),
+      resumeName: v.optional(v.string()),
+      resumeSize: v.optional(v.number()),
+      resumeStorageId: v.optional(v.id("_storage")),
+      updatedAt: v.number(),
+    }).index("by_user", ["userId"]),
+
+    // Event notifications: application updates, new applications, announcements.
+    notifications: defineTable({
+      userId: v.id("users"),
+      kind: notificationKindValidator,
+      title: v.string(),
+      body: v.string(),
+      link: v.optional(v.string()),
+      read: v.boolean(),
+      createdAt: v.number(),
+    }).index("by_user", ["userId"]),
+
+    // Open questions on a listing — the team's Q&A thread.
+    comments: defineTable({
+      opportunityId: v.id("opportunities"),
+      userId: v.id("users"),
+      body: v.string(),
+      createdAt: v.number(),
+    }).index("by_opportunity", ["opportunityId"]),
+
+    // Ideas the user saved from the Idea Generator.
+    savedIdeas: defineTable({
+      userId: v.id("users"),
+      title: v.string(),
+      description: v.string(),
+      problem: v.string(),
+      domain: v.string(),
+      difficulty: v.string(),
+      technologies: v.array(v.string()),
+      features: v.array(v.string()),
+      approach: v.string(),
+      createdAt: v.number(),
+    }).index("by_user", ["userId"]),
   },
   {
     schemaValidation: false,
