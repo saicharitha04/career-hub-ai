@@ -1,3 +1,4 @@
+// Detail page for a single listing: full description, actions, comment thread.
 import { AppShell, FullPageLoader } from "@/components/AppShell";
 import { StatusBadge } from "@/components/StatusBadge";
 import { api } from "@/convex/_generated/api";

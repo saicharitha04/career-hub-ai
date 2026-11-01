@@ -1,3 +1,4 @@
+// AI Hackathon Matchmaker: local scoring over skills and domain tags.
 import { AppShell, FullPageLoader } from "@/components/AppShell";
 import { api } from "@/convex/_generated/api";
 import {

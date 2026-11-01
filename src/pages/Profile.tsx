@@ -1,3 +1,4 @@
+// Profile management + resume upload (uncontrolled form, FormData on save).
 import { AppShell, FullPageLoader } from "@/components/AppShell";
 import { api } from "@/convex/_generated/api";
 import { useAuth } from "@/hooks/use-auth";
